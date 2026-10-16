@@ -777,29 +777,37 @@ Model solve_math_program(const vector<vector<double>>& X_tr, const vector<double
         }
     }
 
-    // Tier 4: Sparse Rational Solver
-    vector<int> poly_rat;
-    for (int j : valid_cols) {
-        const string& nm = nodes[j].name;
-        if (nm == "x" || nm == "x1" || nm == "x2" || nm == "((x)**2)" || nm == "((x)**3)" || nm == "((x1)**2)" || nm == "((x2)**2)") {
-            poly_rat.push_back(j);
-        }
-    }
+    // Tier 4: Sparse Rational Solver across Primitive Families
+    vector<vector<string>> rat_families = {
+        {"x", "((x)**2)", "((x)**3)", "x1", "x2", "((x1)**2)", "((x2)**2)"},
+        {"tanh(x)", "((tanh(x))**2)"},
+        {"tan(x)", "((tan(x))**2)"},
+        {"exp(-x)", "((exp(-x))**2)", "exp(x)"}
+    };
 
-    if (!poly_rat.empty()) {
-        int rk = poly_rat.size();
+    for (const auto& fam : rat_families) {
+        vector<int> fam_nodes;
+        for (int j : valid_cols) {
+            const string& nm = nodes[j].name;
+            for (const auto& target_nm : fam) {
+                if (nm == target_nm) { fam_nodes.push_back(j); break; }
+            }
+        }
+        if (fam_nodes.empty()) continue;
+
+        int rk = fam_nodes.size();
         int total_params = (rk + 1) + rk;
         vector<vector<double>> M(N, vector<double>(total_params));
         for (int i = 0; i < N; ++i) {
-            for (int j = 0; j < rk; ++j) M[i][j] = F_tr[poly_rat[j]][i];
+            for (int j = 0; j < rk; ++j) M[i][j] = F_tr[fam_nodes[j]][i];
             M[i][rk] = 1.0;
-            for (int j = 0; j < rk; ++j) M[i][rk + 1 + j] = -y_tr[i] * F_tr[poly_rat[j]][i];
+            for (int j = 0; j < rk; ++j) M[i][rk + 1 + j] = -y_tr[i] * F_tr[fam_nodes[j]][i];
         }
         vector<double> theta;
         if (solve_least_squares(M, y_tr, theta)) {
             vector<int> num_n, den_n;
-            for (int j = 0; j < rk; ++j) if (std::abs(theta[j]) > 1e-4) num_n.push_back(poly_rat[j]);
-            for (int j = 0; j < rk; ++j) if (std::abs(theta[rk + 1 + j]) > 1e-4) den_n.push_back(poly_rat[j]);
+            for (int j = 0; j < rk; ++j) if (std::abs(theta[j]) > 1e-4) num_n.push_back(fam_nodes[j]);
+            for (int j = 0; j < rk; ++j) if (std::abs(theta[rk + 1 + j]) > 1e-4) den_n.push_back(fam_nodes[j]);
 
             if (!num_n.empty() || std::abs(theta[rk]) > 1e-4) {
                 int n_num = num_n.size();
@@ -831,6 +839,9 @@ Model solve_math_program(const vector<vector<double>>& X_tr, const vector<double
                     }
                     res_var /= N;
                     double raw_r2 = 1.0 - res_var / var_y_raw;
+                    int n_params = n_num + n_den + 1;
+                    double occam_score = res_var * (1.0 + 0.02 * n_params);
+
                     if (ok && raw_r2 > EXACT_TOL) {
                         Model m;
                         m.type = "rational";
@@ -851,7 +862,7 @@ Model solve_math_program(const vector<vector<double>>& X_tr, const vector<double
                             if (k + 1 < den_n.size()) m.names_str += ", ";
                         }
                         m.names_str += "]";
-                        return m;
+                        if (n_params <= 3) return m; // Minimal 2-parameter closed-form law
                     }
                 }
             }
@@ -1162,18 +1173,21 @@ void run_ode_block(const string& accel_expr, double x0, double v0) {
     }
 
     // Candidate Phase-Space Code-Neuron Library
-    vector<string> cand_names = {"x", "dx", "sin(x)", "cos(x)", "x^2", "x^3", "x*dx", "dx^2"};
+    vector<string> cand_names = {"const", "x", "dx", "sin(x)", "cos(x)", "x^2", "x^3", "x*dx", "dx^2", "x^2*dx", "|dx|*dx"};
     int K = cand_names.size();
     auto eval_cand = [](int k, double xv, double dxv) -> double {
         switch (k) {
-            case 0: return xv;
-            case 1: return dxv;
-            case 2: return sin(xv);
-            case 3: return cos(xv);
-            case 4: return xv * xv;
-            case 5: return xv * xv * xv;
-            case 6: return xv * dxv;
-            case 7: return dxv * dxv;
+            case 0: return 1.0;
+            case 1: return xv;
+            case 2: return dxv;
+            case 3: return sin(xv);
+            case 4: return cos(xv);
+            case 5: return xv * xv;
+            case 6: return xv * xv * xv;
+            case 7: return xv * dxv;
+            case 8: return dxv * dxv;
+            case 9: return (xv * xv) * dxv;
+            case 10: return std::abs(dxv) * dxv;
             default: return 0.0;
         }
     };
@@ -1279,6 +1293,204 @@ void run_ode_block(const string& accel_expr, double x0, double v0) {
     delete root;
 }
 
+// 5C-2. Blind Observational Telemetry Discovery (--telemetry <file.csv>)
+// Reads raw (t, x) sensor observations without knowing the governing equation or velocity.
+// Compares Explicit Time-Domain Symbolic Regression x = f(t) against
+// Phase-Space Differential System Identification x'' = g(x, x').
+void run_telemetry_block(const string& csv_path) {
+    ifstream fin(csv_path);
+    if (!fin.is_open()) {
+        cerr << "[ERROR] Could not open telemetry CSV file: " << csv_path << "\n";
+        return;
+    }
+    vector<double> t_all, x_all;
+    string line;
+    while (getline(fin, line)) {
+        if (line.empty() || isalpha(line[0]) || line[0] == '#') continue;
+        auto comma = line.find(',');
+        if (comma != string::npos) {
+            t_all.push_back(stod(line.substr(0, comma)));
+            x_all.push_back(stod(line.substr(comma + 1)));
+        }
+    }
+    int N_tot = (int)t_all.size();
+    if (N_tot < 20) {
+        cerr << "[ERROR] Telemetry file requires at least 20 time-series samples.\n";
+        return;
+    }
+    int N_tr = N_tot / 2;
+    double dt = (t_all[N_tr - 1] - t_all[0]) / (N_tr - 1);
+
+    cout << "[Telemetry Mode] Blind Observational Time-Series File: \"" << csv_path << "\"\n";
+    cout << "[Grid Specs]     Total Samples: " << N_tot << " (dt = " << fixed << setprecision(4) << dt << " s)\n";
+    cout << "[Intervals]      Observed Train Window: t in [" << fixed << setprecision(2) << t_all[0] << ", " << t_all[N_tr - 1]
+         << "] | Unseen Future Window: t in [" << t_all[N_tr] << ", " << t_all[N_tot - 1] << "]\n\n";
+
+    // --- Track 1: Explicit Time-Domain Symbolic Regression x = f(t) ---
+    auto t0_alg = chrono::high_resolution_clock::now();
+    int stride = max(1, N_tr / 120);
+    vector<vector<double>> T_tr, T_te;
+    vector<double> y_tr, x_true_te;
+    for (int i = 0; i < N_tr; i += stride) {
+        T_tr.push_back({t_all[i]});
+        y_tr.push_back(x_all[i]);
+    }
+    for (int i = N_tr; i < N_tot; ++i) {
+        T_te.push_back({t_all[i]});
+        x_true_te.push_back(x_all[i]);
+    }
+    vector<DAGNode> dag = build_dag({"t"}, 3);
+    Model alg_model = solve_math_program(T_tr, y_tr, dag, 1.0 - 1e-10);
+    vector<double> alg_preds = predict_model(alg_model, dag, T_te);
+    double alg_nrmse = compute_nrmse(x_true_te, alg_preds);
+    auto t1_alg = chrono::high_resolution_clock::now();
+    double alg_ms = chrono::duration<double, milli>(t1_alg - t0_alg).count();
+
+    // --- Track 2: Blind Phase-Space Differential Discovery x'' = g(x, dx) ---
+    auto t0_ode = chrono::high_resolution_clock::now();
+    int M = N_tr - 4;
+    vector<double> x_obs(M), dx_obs(M), d2x_obs(M);
+    for (int i = 0; i < M; ++i) {
+        int idx = i + 2;
+        x_obs[i] = x_all[idx];
+        dx_obs[i] = (-x_all[idx + 2] + 8.0 * x_all[idx + 1] - 8.0 * x_all[idx - 1] + x_all[idx - 2]) / (12.0 * dt);
+        d2x_obs[i] = (-x_all[idx + 2] + 16.0 * x_all[idx + 1] - 30.0 * x_all[idx] + 16.0 * x_all[idx - 1] - x_all[idx - 2]) / (12.0 * dt * dt);
+    }
+
+    vector<string> cand_names = {"const", "x", "dx", "sin(x)", "cos(x)", "x^2", "x^3", "x*dx", "dx^2", "x^2*dx", "|dx|*dx"};
+    int K = cand_names.size();
+    auto eval_cand = [](int k, double xv, double dxv) -> double {
+        switch (k) {
+            case 0: return 1.0;
+            case 1: return xv;
+            case 2: return dxv;
+            case 3: return sin(xv);
+            case 4: return cos(xv);
+            case 5: return xv * xv;
+            case 6: return xv * xv * xv;
+            case 7: return xv * dxv;
+            case 8: return dxv * dxv;
+            case 9: return (xv * xv) * dxv;
+            case 10: return std::abs(dxv) * dxv;
+            default: return 0.0;
+        }
+    };
+
+    vector<vector<double>> C_mat(K, vector<double>(M));
+    for (int k = 0; k < K; ++k) {
+        for (int i = 0; i < M; ++i) C_mat[k][i] = eval_cand(k, x_obs[i], dx_obs[i]);
+    }
+
+    double var_d2x = calc_var(d2x_obs);
+    vector<int> best_subset;
+    vector<double> best_w;
+    double best_score = 1e18;
+    double best_r2 = -1.0;
+
+    for (int n_terms = 1; n_terms <= 3; ++n_terms) {
+        vector<int> idx(n_terms);
+        function<void(int, int)> search_subsets = [&](int pos, int start_k) {
+            if (pos == n_terms) {
+                vector<vector<double>> A(M, vector<double>(n_terms));
+                for (int s = 0; s < M; ++s) {
+                    for (int t = 0; t < n_terms; ++t) A[s][t] = C_mat[idx[t]][s];
+                }
+                vector<double> w;
+                if (solve_least_squares(A, d2x_obs, w)) {
+                    double res = 0.0;
+                    for (int s = 0; s < M; ++s) {
+                        double p = 0.0;
+                        for (int t = 0; t < n_terms; ++t) p += w[t] * A[s][t];
+                        res += (d2x_obs[s] - p) * (d2x_obs[s] - p);
+                    }
+                    res /= M;
+                    double rel_err = res / (var_d2x + 1e-12);
+                    double score = rel_err + 1e-5 * n_terms;
+                    if (score < best_score) {
+                        best_score = score;
+                        best_r2 = 1.0 - rel_err;
+                        best_subset = idx;
+                        best_w = w;
+                    }
+                }
+                return;
+            }
+            for (int k = start_k; k < K; ++k) {
+                idx[pos] = k;
+                search_subsets(pos + 1, k + 1);
+            }
+        };
+        search_subsets(0, 0);
+    }
+
+    auto disc_accel = [&](double xv, double dxv) {
+        double a = 0.0;
+        for (size_t t = 0; t < best_subset.size(); ++t) {
+            a += best_w[t] * eval_cand(best_subset[t], xv, dxv);
+        }
+        return a;
+    };
+
+    // Start RK4 strictly from the last interior training stencil point (idx_start = N_tr - 3)
+    // using ONLY training position observations to estimate velocity (zero test leakage)
+    int idx_start = N_tr - 3;
+    double xp = x_all[idx_start];
+    double vp = dx_obs[M - 1];
+    vector<double> x_pred_te(N_tot - N_tr);
+    for (int i = idx_start; i < N_tot; ++i) {
+        if (i >= N_tr) {
+            x_pred_te[i - N_tr] = xp;
+        }
+        double k1_x = vp;
+        double k1_v = disc_accel(xp, vp);
+        double k2_x = vp + 0.5 * dt * k1_v;
+        double k2_v = disc_accel(xp + 0.5 * dt * k1_x, vp + 0.5 * dt * k1_v);
+        double k3_x = vp + 0.5 * dt * k2_v;
+        double k3_v = disc_accel(xp + 0.5 * dt * k2_x, vp + 0.5 * dt * k2_v);
+        double k4_x = vp + dt * k3_v;
+        double k4_v = disc_accel(xp + dt * k3_x, vp + dt * k3_v);
+
+        xp += (dt / 6.0) * (k1_x + 2.0 * k2_x + 2.0 * k3_x + k4_x);
+        vp += (dt / 6.0) * (k1_v + 2.0 * k2_v + 2.0 * k3_v + k4_v);
+    }
+    auto t1_ode = chrono::high_resolution_clock::now();
+    double ode_ms = chrono::duration<double, milli>(t1_ode - t0_ode).count();
+    double ode_nrmse = compute_nrmse(x_true_te, x_pred_te);
+
+    cout << ">>> TRACK 1: EXPLICIT TIME-DOMAIN SYMBOLIC REGRESSION x = f(t) <<<\n";
+    cout << "  Candidate Formula:    x(t) = " << format_model_formula(alg_model, dag) << "\n";
+    cout << "  Train R^2:            " << fixed << setprecision(6) << alg_model.r2 << "\n";
+    cout << "  Future Extrap NRMSE:  " << scientific << setprecision(2) << alg_nrmse
+         << " [" << ((alg_nrmse < 1e-3) ? "EXACT CLOSED-FORM" : "FAILS (Non-Elementary Trajectory)") << "]\n";
+    cout << "  Latency:              " << fixed << setprecision(3) << alg_ms << " ms\n\n";
+
+    cout << ">>> TRACK 2: BLIND PHASE-SPACE DIFFERENTIAL DISCOVERY x'' = g(x, x') <<<\n";
+    cout << "  Discovered ODE Law:   x''(t) = ";
+    for (size_t t = 0; t < best_subset.size(); ++t) {
+        double w = best_w[t];
+        if (t > 0) cout << (w >= 0 ? " + " : " - ");
+        else if (w < 0) cout << "-";
+        cout << fixed << setprecision(4) << abs(w) << " * " << cand_names[best_subset[t]];
+    }
+    cout << "\n";
+    cout << "  Phase-Space R^2:      " << fixed << setprecision(6) << best_r2 << "\n";
+    cout << "  Future Extrap NRMSE:  " << scientific << setprecision(2) << ode_nrmse
+         << " [" << ((ode_nrmse < 1e-3) ? "EXACT DYNAMICAL LAW LOCKED" : "APPROXIMATE") << "]\n";
+    cout << "  Latency:              " << fixed << setprecision(3) << ode_ms << " ms\n\n";
+
+    cout << ">>> PARADIGM SELECTION VERDICT <<<\n";
+    if (ode_nrmse < alg_nrmse && ode_nrmse < 1e-3) {
+        cout << "  Selected Regime:      NON-ELEMENTARY DYNAMICAL ATTRACTOR (Phase-Space ODE wins by "
+             << scientific << setprecision(1) << (alg_nrmse / max(ode_nrmse, 1e-16)) << "x lower error)\n";
+    } else if (alg_nrmse < 1e-3) {
+        cout << "  Selected Regime:      EXPLICIT CLOSED-FORM TRAJECTORY x = f(t)\n";
+    } else {
+        cout << "  Selected Regime:      APPROXIMATE DYNAMICAL FIT\n";
+    }
+    cout << "========================================================================\n\n";
+}
+
+
 // 5D. PDE Spatio-Temporal Field Identification & Forward Solver Block
 void run_pde_block(const string& pde_expr) {
     cout << "[Calculus Mode] Spatio-Temporal PDE Operator Block (--pde): u_t = " << pde_expr << "\n";
@@ -1358,7 +1570,7 @@ void run_pde_block(const string& pde_expr) {
     double best_score = 1e18;
     double best_r2 = -1.0;
 
-    for (int n_terms = 1; n_terms <= 2; ++n_terms) {
+    for (int n_terms = 1; n_terms <= 3; ++n_terms) {
         vector<int> idx(n_terms);
         function<void(int, int)> search_pde = [&](int pos, int start_k) {
             if (pos == n_terms) {
@@ -1470,6 +1682,7 @@ void print_help(const char* prog) {
          << "  --ode \"<accel_expr>\"    Discover 2nd-order ODE x'' = f(x, dx) & RK4 extrapolate\n"
          << "                          (Use variables: x for position, dx for velocity x')\n"
          << "  --ic \"<x0>,<v0>\"        Initial conditions for --ode [default: \"1.2,0.0\"]\n"
+         << "  --telemetry <path.csv>  Blind time-series discovery (x=f(t) vs x''=g(x,x')) from raw (t,x) CSV\n"
          << "  --pde \"<ut_expr>\"       Discover 1D PDE u_t = f(u, ux, uxx) & extrapolate field\n\n"
          << "DOMAIN OPTIONS:\n"
          << "  --train-range \"<a>:<b>\" Training interval [default: \"1.0:5.0\"]\n"
@@ -1485,7 +1698,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    string expr_str = "", data_str = "", file_str = "";
+    string expr_str = "", data_str = "", file_str = "", telemetry_str = "";
     string diff_str = "", int_str = "", ode_str = "", pde_str = "";
     string ic_str = "1.2,0.0";
     string train_range_str = "1.0:5.0";
@@ -1500,6 +1713,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--expr" && i + 1 < argc) expr_str = argv[++i];
         else if (arg == "--data" && i + 1 < argc) data_str = argv[++i];
         else if (arg == "--file" && i + 1 < argc) file_str = argv[++i];
+        else if (arg == "--telemetry" && i + 1 < argc) telemetry_str = argv[++i];
         else if (arg == "--diff" && i + 1 < argc) diff_str = argv[++i];
         else if (arg == "--integrate" && i + 1 < argc) int_str = argv[++i];
         else if (arg == "--ode" && i + 1 < argc) ode_str = argv[++i];
@@ -1544,6 +1758,10 @@ int main(int argc, char* argv[]) {
             v0 = stod(ic_str.substr(comma + 1));
         }
         run_ode_block(ode_str, x0, v0);
+        return 0;
+    }
+    if (!telemetry_str.empty()) {
+        run_telemetry_block(telemetry_str);
         return 0;
     }
     if (!pde_str.empty()) {

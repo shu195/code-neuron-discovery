@@ -167,6 +167,26 @@ Extracts spatial and temporal gradients $(u_t, u_x, u_{xx})$ from spatio-tempora
   Extrapolation NRMSE:  1.85e-13 [EXACT PDE FIELD LAW LOCKED]
 ```
 
+### 5. Blind Time-Series Telemetry Discovery (`--telemetry`)
+Given raw observational time-series $(t, x)$ from CSV telemetry, the engine evaluates both explicit time-domain regression ($x = f(t)$) and non-elementary phase-space differential discovery ($\ddot{x} = g(x, \dot{x})$), automatically determining whether the underlying system is an elementary function or governed by a non-linear dynamical attractor:
+```bash
+./math_solver --telemetry "path/to/telemetry.csv"
+```
+```text
+>>> TRACK 1: EXPLICIT TIME-DOMAIN SYMBOLIC REGRESSION x = f(t) <<<
+  Candidate Formula:    x(t) = UNSOLVED
+  Train R^2:            -1.000000
+  Future Extrap NRMSE:  3.26e-01 [FAILS (Non-Elementary Trajectory)]
+
+>>> TRACK 2: BLIND PHASE-SPACE DIFFERENTIAL DISCOVERY x'' = g(x, x') <<<
+  Discovered ODE Law:   x''(t) = -4.0000 * x - 0.2000 * dx - 1.5000 * x^3
+  Phase-Space R^2:      0.999996
+  Future Extrap NRMSE:  7.10e-06 [EXACT DYNAMICAL LAW LOCKED]
+
+>>> PARADIGM SELECTION VERDICT <<<
+  Selected Regime:      NON-ELEMENTARY DYNAMICAL ATTRACTOR
+```
+
 ---
 
 ## Comparison with Related Methodologies
@@ -213,6 +233,7 @@ USAGE:
   math_solver --diff "<math_expr>" [options]
   math_solver --integrate "<math_expr>" [options]
   math_solver --ode "<accel_expr>" [--ic "<x0>,<v0>"]
+  math_solver --telemetry <path.csv>
   math_solver --pde "<ut_expr>"
   math_solver --data "x1,y1; x2,y2; ..."
   math_solver --file <path.csv>
@@ -222,6 +243,7 @@ FLAGS:
   --diff "<string>"       Discover symbolic 1st & 2nd derivatives f'(x), f''(x)
   --integrate "<string>"  Discover symbolic antiderivative F(x) = int f(t) dt
   --ode "<accel_expr>"    Discover 2nd-order ODE x'' = f(x, dx) and extrapolate via RK4
+  --telemetry <path.csv>  Blind time-series discovery (x=f(t) vs x''=g(x,dx)) from raw CSV
   --pde "<ut_expr>"       Discover 1D PDE u_t = f(u, ux, uxx) and propagate field
   --train-range "<a>:<b>" Domain for training observation samples [default: "1.0:5.0"]
   --test-range "<c>:<d>"  Domain for out-of-distribution evaluation [default: "5.5:8.0"]
