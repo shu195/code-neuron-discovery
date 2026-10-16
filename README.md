@@ -1,80 +1,117 @@
 # Code-Neuron Discovery
 
-> **A Real-Time Symbolic Scientific Discovery & Calculus Engine in Pure C++ (AVX2)**  
-> *Discovers exact closed-form algebraic laws, ODEs, PDEs, derivatives, and integrals directly from data using Topological Code-Neuron DAGs and Occam Hierarchical Search.*
+### Real-Time Symbolic Regression and System Identification via Directed Acyclic Functional Graphs
 
-[![C++17](https://img.shields.io/badge/C%2B%2B-17%20%2F%20AVX2-00599C?logo=c%2B%2B)](https://en.wikipedia.org/wiki/C%2B%2B17)
-[![Benchmark](https://img.shields.io/badge/Benchmark-100%2F100%20(100%25)%20Exact-brightgreen)](https://github.com/shu195/code-neuron-discovery)
-[![NRMSE](https://img.shields.io/badge/Extrapolation%20NRMSE-%3C%201e--11-blue)](https://github.com/shu195/code-neuron-discovery)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![C++17](https://img.shields.io/badge/Language-C%2B%2B17-00599C?logo=c%2B%2B)](https://en.wikipedia.org/wiki/C%2B%2B17)
+[![Architecture](https://img.shields.io/badge/Instruction%20Set-x86__64%20%2F%20AVX2-555555)](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
-## 🔬 Overview & Key Idea
+## Abstract
 
-Modern deep learning architectures (MLPs, Physics-Informed Neural Networks / PINNs, Transformers) approximate continuous phenomena through billions of floating-point weights. While effective at interpolating within training manifolds, they suffer from fundamental limitations:
-1. **Zero Interpretability**: They output numerical predictions rather than closed-form mathematical equations.
-2. **Catastrophic Out-of-Distribution Drift**: Outside the training support, neural approximations diverge.
-3. **High Latency & Heavy Footprint**: Require massive GPU stacks, Python runtime overhead, and long training epochs.
+Inferring closed-form governing equations from discrete observational data—known as symbolic regression and nonlinear system identification—remains a fundamental objective across physical, biological, and engineering sciences. Conventional paradigms frequently present structural trade-offs: continuous neural approximations (e.g., Multilayer Perceptrons, Physics-Informed Neural Networks) act as opaque parameterized approximators with limited out-of-domain extrapolation guarantees, whereas genetic programming methods often require substantial computational budgets and stochastic search heuristics.
 
-**Code-Neuron Discovery** replaces black-box weight matrices with **Topological Code-Neurons**—executable mathematical blocks connected in a directed acyclic graph (DAG) with **compositional re-inputting**. Coupled with an **Occam 5-Tier Hierarchical Solver**, the engine discovers exact analytical formulations from data in milliseconds without gradient descent or genetic mutation thrashing.
+**Code-Neuron Discovery** provides a deterministic, graph-based framework for symbolic system identification implemented in pure C++17. The system represents candidate functional spaces as Directed Acyclic Graphs (DAGs) of elementary mathematical operators with depth-controlled compositional re-evaluation. Rather than relying on unconstrained global optimization, model selection is performed via an Occam-ordered hierarchical solver that systematically evaluates hypotheses from lowest to highest structural complexity.
 
-```
-Raw Data / Sensor Readings (x, y) 
-      │
-      ▼
-Topological Code-Neuron DAG ──► [Unary & Binary Operators: sin, cos, exp, log, sqrt, ...]
-      │
-      ▼
-Occam 5-Tier Hierarchical Solver:
-  ├─ Tier 0: Invariant Constant Check (var < 1e-10)
-  ├─ Tier 1: Single-Node Collinearity & Invertible Target Maps
-  ├─ Tier 2: Polynomial Sub-basis Pursuit (Powers 1..5)
-  ├─ Tier 3: 2-Term Sparse Primitive Basis Pursuit
-  └─ Tier 4: Sparse Rational Solver P(x) / (1 + Q(x))
-      │
-      ▼
-Exact Symbolic Equation + Infinite Horizon Extrapolation (NRMSE < 1e-11)
-```
+The framework supports closed-form algebraic discovery, numerical differentiation and integration, second-order autonomous ordinary differential equation (ODE) parameterization, and spatio-temporal partial differential equation (PDE) identification from observational fields.
 
 ---
 
-## ⚡ 100-Problem Benchmark Results
+## Methodological Architecture
 
-The architecture was evaluated on a comprehensive **100-problem mathematical benchmark** spanning 5 distinct functional categories. Each problem is trained on $[a, b]$ and evaluated on a strictly disjoint out-of-distribution extrapolation interval $[c, d]$.
+```
+Observational Dataset (X, y)
+             │
+             ▼
+┌────────────────────────────────────────────────────────┐
+│  Topological Functional Graph (DAG)                    │
+│  - Unary Basis:   sin, cos, exp, log, sqrt, tanh, ...  │
+│  - Binary Basis:  +, -, *                              │
+│  - Compositions:  Nested re-inputting up to Depth 3    │
+└────────────────────────────────────────────────────────┘
+             │
+             ▼
+┌────────────────────────────────────────────────────────┐
+│  Hierarchical Occam Model Selection Engine            │
+│  ├─ Tier 0: Invariant Constant Detection               │
+│  ├─ Tier 1: Collinear Transform Matching               │
+│  ├─ Tier 2: Polynomial Sub-Basis Pursuit (deg <= 5)   │
+│  ├─ Tier 3: Two-Term Sparse Basis Pursuit             │
+│  └─ Tier 4: Sparse Rational Identification P(x)/Q(x)   │
+└────────────────────────────────────────────────────────┘
+             │
+             ▼
+Discovered Governing Equation & Out-of-Distribution Validation
+```
 
-### Python vs. Native C++ Head-to-Head
+### 1. Functional Graph Representation
+Let $\mathbf{x} \in \mathbb{R}^d$ denote the input vector. A computational graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ is constructed where terminal input nodes $\mathcal{V}_0 = \{x_1, \dots, x_d\}$ are recursively composed through:
+* **Unary Operators**: $\mathcal{U} = \{ -u, u^2, u^3, \sqrt{u}, \frac{1}{u}, \sin(u), \cos(u), \tan(u), \exp(u), \exp(-u), \ln(u), \ln(1+u), \sqrt{1+u}, \frac{1}{1+u}, \tanh(u), |u|, \exp(-u^2) \}$
+* **Binary Operators**: $\mathcal{B} = \{ u_i + u_j, \, u_i - u_j, \, u_i \cdot u_j \}$
 
-| Metric | Python (NumPy + Vectorized) | C++ Native (`-O3 -mavx2`) | Improvement / Advantage |
-| :--- | :---: | :---: | :---: |
-| **Exact Analytical Solutions** | **100 / 100 (100.0%)** | **100 / 100 (100.0%)** | **Identical mathematical closure** |
-| **Total Wall-Clock Time** | `38.570 s` | `5.681 s` | **$6.79\times$ faster execution** |
-| **Mean Latency per Problem** | `385.70 ms` | `56.81 ms` | **$-328.89\text{ ms}$ reduction** |
-| **External Dependencies** | Python 3.12, NumPy, SciPy | **Zero** (Standard C++ Library only) | Fully portable single binary |
-| **Binary / Environment Size** | $\sim 50\text{ MB}$ | **$348\text{ KB}$** executable | **$140\times$ smaller deployment** |
-| **Memory / GC Determinism** | Dynamic PyObject allocation | Contiguous stack/heap buffers | Zero GC pauses |
+Compositional depth is bounded ($D \le 3$), yielding a structured dictionary of candidate basis functions evaluated over the observation domain without combinatorial explosion.
 
-### Category Breakdown
+### 2. Hierarchical Occam Model Selection
+To avoid overfitting and enforce structural parsimony, models are evaluated through a prioritized sequence:
 
-| Category | Problem Count | Analytical Exact ($NRMSE < 10^{-4}$) | Mean Extrapolation NRMSE | Mean C++ Latency |
+1. **Tier 0 (Zero-Order Invariance)**: Evaluates whether sample variance satisfies $\mathrm{Var}(y) < \epsilon_{\mathrm{const}}$. If satisfied, $y = \bar{y}$ is selected.
+2. **Tier 1 (Single-Node Collinearity & Coordinate Inversion)**: Evaluates linear alignment between each basis node $u_j \in \mathcal{V}$ and transformed targets $\phi_k(y)$ where $\phi_k \in \{\mathrm{id}, \ln, \sqrt{\cdot}, (\cdot)^{-1}, (\cdot)^2\}$:
+   $$R^2 = \frac{\mathrm{Cov}(u_j, \phi_k(y))^2}{\mathrm{Var}(u_j)\mathrm{Var}(\phi_k(y))} \ge 1 - \delta$$
+3. **Tier 2 (Polynomial Sub-Basis Pursuit)**: Evaluates regularized least-squares models over monomial sub-dictionaries up to degree 5.
+4. **Tier 3 (Two-Term Sparse Basis Pursuit)**: Searches pairwise linear combinations $\beta_1 u_i + \beta_2 u_j + \beta_0$ over complexity-ordered primitive graph nodes.
+5. **Tier 4 (Sparse Rational Solvers)**: Recovers rational structures of the form $y = \frac{P(\mathbf{x})}{1 + Q(\mathbf{x})}$ by linearizing the relationship $y \cdot (1 + Q(\mathbf{x})) = P(\mathbf{x})$ and solving via constrained least squares with post-hoc coefficient pruning.
+
+---
+
+## Empirical Benchmark Evaluation
+
+The methodology was evaluated against a standardized 100-problem benchmark covering five functional categories:
+1. **Polynomial & Power Functions** (Problems `p01`–`p20`)
+2. **Trigonometric Functions & Harmonics** (Problems `t21`–`t40`)
+3. **Exponential & Logarithmic Compositions** (Problems `e41`–`e60`)
+4. **Rational Functions & Roots** (Problems `r61`–`r80`)
+5. **Multivariable & Deep Composite Functions** (Problems `c81`–`c100`)
+
+Each problem was trained on an observation interval $\mathcal{D}_{\mathrm{train}} = [a, b]$ and evaluated on a strictly disjoint out-of-distribution extrapolation interval $\mathcal{D}_{\mathrm{test}} = [c, d]$.
+
+### Performance & Accuracy Summary
+
+| Metric | Reference Python (NumPy / SciPy) | Native C++ Implementation (`-O3 -mavx2`) |
+| :--- | :---: | :---: |
+| **Exact Recovery Rate** ($\mathrm{NRMSE} < 10^{-4}$) | **100 / 100 (100.0%)** | **100 / 100 (100.0%)** |
+| **Total Benchmark Runtime** | $38.570\text{ s}$ | **$5.681\text{ s}$** |
+| **Mean Solve Latency per Problem** | $385.70\text{ ms}$ | **$56.81\text{ ms}$** |
+| **External Runtime Dependencies** | Python 3.12, NumPy, SciPy | **None** (Standard C++17 only) |
+| **Compiled Binary Footprint** | $\sim 50\text{ MB}$ (Environment) | **$348\text{ KB}$** (Static binary) |
+| **Mean Extrapolation NRMSE** | $6.4 \times 10^{-12}$ | **$7.8 \times 10^{-12}$** |
+
+$$\mathrm{NRMSE} = \frac{\sqrt{\frac{1}{N} \sum_{i=1}^N (y_i - \hat{y}_i)^2}}{\max(y) - \min(y)}$$
+
+### Results by Functional Class
+
+| Category | Problem Count | Analytical Recovery Rate | Mean Extrapolation NRMSE | Mean Latency |
 | :--- | :---: | :---: | :---: | :---: |
-| **Polynomial & Power Functions** (`p01`–`p20`) | 20 | **20 / 20 (100%)** | $2.31 \times 10^{-14}$ | $1.8\text{ ms}$ |
-| **Trigonometric Functions & Harmonics** (`t21`–`t40`) | 20 | **20 / 20 (100%)** | $1.42 \times 10^{-12}$ | $24.3\text{ ms}$ |
-| **Exponential & Logarithmic Nests** (`e41`–`e60`) | 20 | **20 / 20 (100%)** | $4.85 \times 10^{-13}$ | $21.6\text{ ms}$ |
-| **Rational Functions & Roots** (`r61`–`r80`) | 20 | **20 / 20 (100%)** | $3.12 \times 10^{-11}$ | $27.4\text{ ms}$ |
-| **Multivariable & Deep Composites** (`c81`–`c100`) | 20 | **20 / 20 (100%)** | $5.90 \times 10^{-12}$ | $198.5\text{ ms}$ |
-| **Grand Total** | **100** | **100 / 100 (100.0%)** | **$7.8 \times 10^{-12}$** | **$56.8\text{ ms}$** |
+| Polynomial & Power | 20 | 20 / 20 (100%) | $2.31 \times 10^{-14}$ | $1.8\text{ ms}$ |
+| Trigonometric & Harmonics | 20 | 20 / 20 (100%) | $1.42 \times 10^{-12}$ | $24.3\text{ ms}$ |
+| Exponential & Logarithmic | 20 | 20 / 20 (100%) | $4.85 \times 10^{-13}$ | $21.6\text{ ms}$ |
+| Rational & Radical | 20 | 20 / 20 (100%) | $3.12 \times 10^{-11}$ | $27.4\text{ ms}$ |
+| Multivariable & Composite | 20 | 20 / 20 (100%) | $5.90 \times 10^{-12}$ | $198.5\text{ ms}$ |
 
 ---
 
-## 🧮 Calculus & Continuous Physics Blocks
+## Dynamical Systems & Calculus Operators
 
-The solver includes specialized calculus and dynamical systems code-neurons:
+The solver incorporates specialized modules for differential, integral, and dynamical operators:
 
-### 1. Differential Calculus Block (`--diff`)
-Extracts 1st and 2nd derivatives using 5-point 4th-order finite-difference stencils ($O(h^4)$ error), then identifies the **exact symbolic derivative formulas**:
-```powershell
-.\math_solver.exe --diff "sin(x) + exp(-x)"
+### 1. Numerical & Symbolic Differentiation (`--diff`)
+First and second derivatives are evaluated via five-point central difference stencils:
+$$f'(x_i) = \frac{-f(x_{i+2}) + 8f(x_{i+1}) - 8f(x_{i-1}) + f(x_{i-2})}{12h} + \mathcal{O}(h^4)$$
+$$f''(x_i) = \frac{-f(x_{i+2}) + 16f(x_{i+1}) - 30f(x_i) + 16f(x_{i-1}) - f(x_{i-2})}{12h^2} + \mathcal{O}(h^4)$$
+
+The resulting numerical derivative fields are subsequently mapped into symbolic form via the functional graph:
+```bash
+./math_solver --diff "sin(x) + exp(-x)"
 ```
 ```text
 >>> 1ST DERIVATIVE DISCOVERY: df/dx <<<
@@ -86,10 +123,10 @@ Extracts 1st and 2nd derivatives using 5-point 4th-order finite-difference stenc
   Extrapolation NRMSE:  2.07e-11 [EXACT (0-error)]
 ```
 
-### 2. Integral Calculus Block (`--integrate`)
-Performs composite Simpson's quadrature to accumulate $F(x) = \int_{x_0}^x f(t)\,dt$ and discovers the **exact symbolic antiderivative**:
-```powershell
-.\math_solver.exe --integrate "3*x^2 - 2*x + 1" --train-range "1.0:5.0" --test-range "5.5:8.0"
+### 2. Symbolic Antiderivative Recovery (`--integrate`)
+Evaluates composite Simpson's quadrature to construct cumulative integrals $F(x) = \int_{x_0}^x f(t)\,dt$, subsequently identifying the closed-form antiderivative:
+```bash
+./math_solver --integrate "3*x^2 - 2*x + 1" --train-range "1.0:5.0" --test-range "5.5:8.0"
 ```
 ```text
 >>> SYMBOLIC ANTIDERIVATIVE DISCOVERY: F(x) = Integral[t=1.000000..x] f(t) dt <<<
@@ -98,11 +135,11 @@ Performs composite Simpson's quadrature to accumulate $F(x) = \int_{x_0}^x f(t)\
   Extrapolation NRMSE:  2.34e-13 [EXACT (0-error)]
 ```
 
-### 3. Autonomous 2nd-Order ODE Discovery & RK4 Extrapolation (`--ode`)
-Given only discrete position observations $x(t)$, the engine numerically differentiates, searches candidate phase-space code-neurons $(x, \dot{x}, \sin(x), x^3, \dots)$, recovers the governing equation of motion, and integrates forward via RK4 to predict future unseen horizons:
-```powershell
-# Nonlinear Large-Amplitude Pendulum:
-.\math_solver.exe --ode "-0.2*dx - 9.81*sin(x)" --ic "1.2,0.0"
+### 3. Second-Order Autonomous ODE Identification (`--ode`)
+Given discrete position trajectories $x(t)$, state derivatives $(x, \dot{x}, \ddot{x})$ are estimated, and governing equations of motion $\ddot{x} = g(x, \dot{x})$ are identified from candidate phase-space operators. Forward validation is conducted via fourth-order Runge-Kutta (RK4) integration:
+```bash
+# Example: Large-Amplitude Damped Pendulum
+./math_solver --ode "-0.2*dx - 9.81*sin(x)" --ic "1.2,0.0"
 ```
 ```text
 >>> DISCOVERED GOVERNING DIFFERENTIAL EQUATION <<<
@@ -114,11 +151,11 @@ Given only discrete position observations $x(t)$, the engine numerically differe
   Extrapolation NRMSE:  8.39e-08 [EXACT DYNAMICAL LAW LOCKED]
 ```
 
-### 4. Spatio-Temporal PDE Field Identification (`--pde`)
-Identifies 1D time-dependent PDEs $u_t = f(u, u_x, u_{xx})$ from spatio-temporal grid data and verifies forward field propagation under CFL-stable conditions:
-```powershell
-# Viscous Burgers Shockwave PDE:
-.\math_solver.exe --pde "0.1*uxx - 1.0*u*ux"
+### 4. Spatio-Temporal PDE Operator Identification (`--pde`)
+Extracts spatial and temporal gradients $(u_t, u_x, u_{xx})$ from spatio-temporal observation grids $u(t, x)$ and determines the governing PDE under Courant–Friedrichs–Lewy (CFL) stability constraints:
+```bash
+# Example: Viscous Burgers Equation
+./math_solver --pde "0.1*uxx - 1.0*u*ux"
 ```
 ```text
 >>> DISCOVERED PARTIAL DIFFERENTIAL EQUATION (PDE) <<<
@@ -132,46 +169,43 @@ Identifies 1D time-dependent PDEs $u_t = f(u, u_x, u_{xx})$ from spatio-temporal
 
 ---
 
-## 📊 Paradigm Comparison
+## Comparison with Related Methodologies
 
-| Capability | Standard MLPs / PINNs | Genetic Programming (PySR / Eureqa) | Transformer Regressors | **Code-Neuron Discovery (This Work)** |
+| Attribute | Continuous Neural Approximators (MLP / PINN) | Genetic Programming (PySR / Eureqa) | Sparse Linear Dictionaries (SINDy) | **Code-Neuron Discovery (This Work)** |
 | :--- | :---: | :---: | :---: | :---: |
-| **Output Representation** | Black-box weights | Symbolic Tree | Token sequence | **Exact Closed-Form Symbolic Law** |
-| **Solve Latency** | Minutes (GPU epochs) | Minutes to Hours | Seconds (GPU forward pass) | **$1\text{--}150\text{ ms}$ (Single CPU Core)** |
-| **Extrapolation NRMSE** | Diverges ($> 50\%$) | $10^{-2}\text{--}10^{-4}$ | $\sim 5\%\text{--}20\%$ | **$< 10^{-11}$ (Machine Precision)** |
-| **Calculus & ODE/PDE Discovery** | Requires AD/PINN loss | Complex custom wrappers | None | **Native (`--diff`, `--integrate`, `--ode`, `--pde`)** |
-| **Runtime Footprint** | PyTorch / CUDA ($> 2\text{ GB}$) | Julia + Python runtime | PyTorch + LLM weights | **Single Portable C++ Binary ($348\text{ KB}$)** |
+| **Output Representation** | Numerical weight matrices | Symbolic expression tree | Linear coefficient vector | **Closed-form analytical equation** |
+| **Optimization Method** | Stochastic gradient descent | Genetic variation / selection | Sparse regression (STLSQ) | **Topological DAG + Hierarchical Least Squares** |
+| **Computation Latency** | Minutes to hours | Minutes to hours | Milliseconds to seconds | **$1\text{--}150\text{ ms}$ (Single CPU Core)** |
+| **Out-of-Domain Generalization** | Statistical interpolation | Moderate | High (if basis contains law) | **Exact ($\mathrm{NRMSE} \le 10^{-8}$)** |
+| **Rational Functions ($P/Q$)** | Implicit | High complexity | Requires bilinear relaxation | **Direct sparse rational solver** |
+| **Deployment Footprint** | Large (PyTorch / GPU runtime) | Moderate (Julia / Python) | Lightweight (Python) | **Zero-dependency C++17 binary ($348\text{ KB}$)** |
 
 ---
 
-## 🚀 Quickstart & Compilation
+## Build & Execution
 
-### Requirements
-* Any modern C++17 compiler (`g++`, `clang++`, or `MSVC`).
-* x86_64 CPU with AVX2 support (standard on CPUs from 2013+).
-* Zero external libraries or package managers required.
+### Prerequisites
+* C++17 compliant compiler (`g++` $\ge 9$, `clang++` $\ge 10$, or `MSVC` $\ge 2019$).
+* x86_64 architecture with AVX2 instruction support.
 
-### Build with CMake
+### Compilation
+
 ```bash
+# Clone repository
 git clone https://github.com/shu195/code-neuron-discovery.git
 cd code-neuron-discovery
+
+# Direct compilation via GCC/Clang
+g++ -O3 -mavx2 -march=native -std=c++17 src/math_solver_cli.cpp -o math_solver
+g++ -O3 -mavx2 -march=native -std=c++17 src/benchmark_100.cpp -o benchmark_100
+
+# Alternative: CMake
 mkdir build && cd build
-cmake ..
-cmake --build . --config Release
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build .
 ```
 
-### Build Directly with GCC / Clang
-```bash
-# Build Scientific Solver CLI:
-g++ -O3 -mavx2 -std=c++17 src/math_solver_cli.cpp -o math_solver
-
-# Build 100-Problem Benchmark:
-g++ -O3 -mavx2 -std=c++17 src/benchmark_100.cpp -o benchmark_100
-```
-
----
-
-## 💻 CLI Usage Guide
+### CLI Command Options
 
 ```text
 USAGE:
@@ -187,42 +221,40 @@ FLAGS:
   --expr "<string>"       Algebraic formula to evaluate and discover
   --diff "<string>"       Discover symbolic 1st & 2nd derivatives f'(x), f''(x)
   --integrate "<string>"  Discover symbolic antiderivative F(x) = int f(t) dt
-  --ode "<accel_expr>"    Discover 2nd-order ODE x'' = f(x, dx) & RK4 extrapolate
-  --pde "<ut_expr>"       Discover 1D PDE u_t = f(u, ux, uxx) & propagate field
-  --train-range "<a>:<b>" Training domain [default: "1.0:5.0"]
-  --test-range "<c>:<d>"  Extrapolation test domain [default: "5.5:8.0"]
-  --samples <N>           Number of sample points [default: 100]
+  --ode "<accel_expr>"    Discover 2nd-order ODE x'' = f(x, dx) and extrapolate via RK4
+  --pde "<ut_expr>"       Discover 1D PDE u_t = f(u, ux, uxx) and propagate field
+  --train-range "<a>:<b>" Domain for training observation samples [default: "1.0:5.0"]
+  --test-range "<c>:<d>"  Domain for out-of-distribution evaluation [default: "5.5:8.0"]
+  --samples <N>           Number of observation points [default: 100]
 ```
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```
 code-neuron-discovery/
-├── CMakeLists.txt              # Standard CMake build configuration
-├── Makefile                    # One-command Makefile
-├── LICENSE                     # MIT License
-├── README.md                   # Complete documentation
+├── CMakeLists.txt                 # CMake configuration
+├── Makefile                       # Makefile for GCC/Clang builds
+├── LICENSE                        # MIT License
+├── README.md                      # Technical documentation
 ├── src/
-│   ├── math_solver_cli.cpp     # Unified C++ CLI, Calculus & Dynamical Engine
-│   └── benchmark_100.cpp       # 100-Problem Benchmark Suite
+│   ├── math_solver_cli.cpp        # CLI executable & calculus engine
+│   └── benchmark_100.cpp          # 100-problem benchmark suite
 └── python/
-    ├── benchmark_100.py        # Python vectorized reference benchmark
+    ├── benchmark_100.py           # Reference Python benchmark implementation
     ├── continuous_physics_blocks.py # Continuous physics & ODE/PDE prototype
-    └── dag_engine.py           # Core Python DAG solver
+    └── dag_engine.py              # Reference Python DAG formulation
 ```
 
 ---
 
-## 📜 Citation
-
-If you use this engine in your research or applications, please cite:
+## Citation
 
 ```bibtex
 @software{barmase2026codeneuron,
   author = {Shubham Barmase},
-  title = {Code-Neuron Discovery: A Real-Time Symbolic Scientific Discovery & Calculus Engine in Pure C++},
+  title = {Code-Neuron Discovery: Real-Time Symbolic Regression and System Identification via Directed Acyclic Functional Graphs},
   year = {2026},
   publisher = {GitHub},
   journal = {GitHub repository},
@@ -232,6 +264,6 @@ If you use this engine in your research or applications, please cite:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
