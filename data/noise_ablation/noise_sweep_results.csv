@@ -1,0 +1,37 @@
+System,Method,SNR_dB,Noise_Sigma,Discovered_Law,Exact_Support,PhaseSpace_R2,Extrapolation_NRMSE,Parameter_Rel_Error
+sys02_duffing,"Naive 5-Point Stencil",999,0,"x'' = 1.0000*x - 0.1500*dx - 1.0000*x^3",1,1,3.53961e-09,7.90472e-09
+sys02_duffing,"Naive 5-Point Stencil",70,0.000127298,"x'' = 1.0045*x - 0.1477*dx - 1.0030*x^3",1,0.0231658,0.00929414,0.00411609
+sys02_duffing,"Naive 5-Point Stencil",60,0.000402552,"x'' = 1.0374*x - 1.0260*x^3",0,0.00238844,0.229714,0.110232
+sys02_duffing,"Naive 5-Point Stencil",50,0.00127298,"x'' = 11.0296*x^2 - 8.0577*x^3 - 4.1306*dx^2",0,0.000505331,0.358471,5.01338
+sys02_duffing,"Naive 5-Point Stencil",40,0.00402552,"x'' = 40.4113*x^2 - 27.9233*x^3 - 14.0159*dx^2",0,0.00230614,nan,18.9448
+sys02_duffing,"Naive 5-Point Stencil",35,0.0071585,"x'' = 11.9556*const - 16.4245*dx^2 - 2.8005*|dx|*dx",0,0.00479137,2.17088,1
+sys02_duffing,"Naive 5-Point Stencil",30,0.0127298,"x'' = 37.0419*const - 22.8159*sin(x) - 13.7087*dx^2",0,0.00743038,4.25895,1
+sys02_duffing,"Naive 5-Point Stencil",25,0.0226372,"x'' = 94.7274*const - 88.9509*sin(x) - 9.0424*dx^2",0,0.00986421,6.46986,1
+sys02_duffing,"Naive 5-Point Stencil",20,0.0402552,"x'' = 242.2814*const - 293.1344*sin(x) - 5.3307*dx^2",0,0.0139799,0.389674,1
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",999,0,"x'' = 0.9999*x - 0.1500*dx - 0.9999*x^3",1,1,3.98545e-05,7.58581e-05
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",70,0.000127298,"x'' = 0.9993*x - 0.1505*dx - 0.9996*x^3",1,0.99937,0.000373818,0.000685873
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",60,0.000402552,"x'' = 0.9979*x - 0.1516*dx - 0.9989*x^3",1,0.993733,0.00114815,0.0020222
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",50,0.00127298,"x'' = 0.9935*x - 0.1551*dx - 0.9966*x^3",1,0.940651,0.00356109,0.00626305
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",40,0.00402552,"x'' = 0.9793*x - 0.1660*dx - 0.9896*x^3",1,0.613108,0.0108139,0.0198029
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",35,0.0071585,"x'' = 0.9992*x - 1.0006*x^3 - 0.2412*|dx|*dx",0,0.334312,0.0446465,0.105477
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",30,0.0127298,"x'' = 0.9709*x - 0.9888*x^3 - 0.2734*|dx|*dx",0,0.13806,0.0435235,0.107726
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",25,0.0226372,"x'' = 0.9139*x - 0.9683*x^3 - 0.3218*|dx|*dx",0,0.0496255,0.0495484,0.123659
+sys02_duffing,"Savitzky-Golay (W=18, deg=4)",20,0.0402552,"x'' = 0.3885*const - 0.6598*x^3",0,0.0181791,0.281736,0.75019
+sys03_vanderpol,"Naive 5-Point Stencil",999,0,"x'' = -1.0000*x + 1.0000*dx - 1.0000*x^2*dx",1,1,2.02845e-08,4.86792e-08
+sys03_vanderpol,"Naive 5-Point Stencil",70,0.000385817,"x'' = -0.9983*x + 1.0030*dx - 1.0047*x^2*dx",1,0.0158015,0.00801022,0.00337515
+sys03_vanderpol,"Naive 5-Point Stencil",60,0.00122006,"x'' = -1.0200*x + 1.0176*dx - 1.0158*x^2*dx",1,0.0016712,0.00799697,0.0178727
+sys03_vanderpol,"Naive 5-Point Stencil",50,0.00385817,"x'' = -1.7889*x - 1.2192*dx^2 + 1.1010*|dx|*dx",0,0.000389336,nan,0.934951
+sys03_vanderpol,"Naive 5-Point Stencil",40,0.0122006,"x'' = 17.6314*const - 7.1250*dx^2 + 2.3657*|dx|*dx",0,0.0036466,2.20559,1
+sys03_vanderpol,"Naive 5-Point Stencil",35,0.0216961,"x'' = 26.6948*x^2 - 11.9425*x^3 - 6.0095*dx^2",0,0.00651503,0.680912,1
+sys03_vanderpol,"Naive 5-Point Stencil",30,0.0385817,"x'' = 68.5546*x^2 - 33.9897*x^3 - 4.8363*dx^2",0,0.0109466,0.636985,1
+sys03_vanderpol,"Naive 5-Point Stencil",25,0.0686091,"x'' = 168.8295*x^2 - 95.2175*x^3 - 3.2886*dx^2",0,0.0184815,nan,1
+sys03_vanderpol,"Naive 5-Point Stencil",20,0.122006,"x'' = 414.7516*x^2 - 260.1753*x^3 - 2.1478*dx^2",0,0.0361404,nan,1
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",999,0,"x'' = -1.0001*x + 0.9995*dx - 0.9993*x^2*dx",1,1,0.000315287,0.000487318
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",70,0.000385817,"x'' = -0.9996*x + 0.9998*dx - 0.9998*x^2*dx",1,0.999078,0.000519387,0.000270583
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",60,0.00122006,"x'' = -0.9986*x + 1.0005*dx - 1.0009*x^2*dx",1,0.990859,0.00229687,0.000998643
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",50,0.00385817,"x'' = -0.9956*x + 1.0028*dx - 1.0042*x^2*dx",1,0.915592,0.00769091,0.00387659
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",40,0.0122006,"x'' = -0.9888*x + 1.0114*dx - 1.0153*x^2*dx",1,0.522063,0.0223729,0.0127414
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",35,0.0216961,"x'' = -0.9864*x + 1.0236*dx - 1.0285*x^2*dx",1,0.259777,0.0344323,0.0227588
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",30,0.0385817,"x'' = -0.9961*x + 1.0514*dx - 1.0528*x^2*dx",1,0.104283,0.0429565,0.0426381
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",25,0.0686091,"x'' = -1.0582*x + 1.1172*dx - 1.0959*x^2*dx",1,0.0406324,0.0231789,0.0936841
+sys03_vanderpol,"Savitzky-Golay (W=18, deg=4)",20,0.122006,"x'' = -1.3102*x + 1.2697*dx - 1.1637*x^2*dx",1,0.0190529,0.150703,0.255457
